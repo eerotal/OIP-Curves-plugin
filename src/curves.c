@@ -35,6 +35,14 @@ PLUGIN_INFO PLUGIN_INFO_NAME(curves) = {
 	.plugin_cleanup = &curves_cleanup
 };
 
+static struct ENABLED_CHANNELS {
+	uint8_t r;
+	uint8_t g;
+	uint8_t b;
+	uint8_t a;
+	uint8_t l;
+} enabled_channels = {0, 0, 0, 0, 0};
+
 static uint8_t *ctrl_points = NULL;
 static uint8_t num_ctrl_points = 0;
 
@@ -134,12 +142,12 @@ static int curves_parse_args(const char **plugin_args,
 	*/
 	char *tmp_arg = NULL;
 	char *tmp_val = NULL;
+	unsigned int no_channels_enabled = 1;
 
 	for (unsigned int i = 0; i < plugin_args_count; i++) {
 		tmp_arg = (char*) plugin_args[i*2];
 		tmp_val = (char*) plugin_args[i*2 + 1];
 		if (strcmp(tmp_arg, "ctrl_points") == 0) {
-			printf("curves: Parsing control points.\n");
 			for (int c = 0; c < strlen(tmp_val); c++) {
 				if (tmp_val[c] == '(') {
 					if (curves_ctrl_point_from_str(tmp_val + c + 1) != 0) {
@@ -148,7 +156,44 @@ static int curves_parse_args(const char **plugin_args,
 				}
 			}
 		} else if (strcmp(tmp_arg, "channels") == 0) {
-			printf("curves: Parsing enabled channels.\n");
+			memset(&enabled_channels, 0, sizeof(struct ENABLED_CHANNELS));
+			printf("curves: Enabled channels: ");
+			for (int c = 0; c < strlen(tmp_val); c++) {
+				switch (tmp_val[c]) {
+					case 'R':
+						enabled_channels.r = 1;
+						printf("R");
+						no_channels_enabled = 0;
+						break;
+					case 'G':
+						enabled_channels.g = 1;
+						printf("G");
+						no_channels_enabled = 0;
+						break;
+					case 'B':
+						enabled_channels.b = 1;
+						printf("B");
+						no_channels_enabled = 0;
+						break;
+					case 'A':
+						enabled_channels.a = 1;
+						printf("A");
+						no_channels_enabled = 0;
+						break;
+					case 'L':
+						enabled_channels.l = 1;
+						printf("L");
+						no_channels_enabled = 0;
+						break;
+					default:
+						break;
+				}
+			}
+			if (no_channels_enabled) {
+				printf("None\n");
+			} else {
+				printf("\n");
+			}
 		}
 	}
 	return 0;
@@ -157,6 +202,11 @@ static int curves_parse_args(const char **plugin_args,
 static int curves_process(const IMAGE *img, IMAGE *img_dest,
 				const char **plugin_args,
 				const unsigned int plugin_args_count) {
+
+	if (img == NULL || img_dest == NULL) {
+		printf("curves: Received NULL image pointer!\n");
+		return 1;
+	}
 
 	if (curves_parse_args(plugin_args, plugin_args_count) != 0) {
 		printf("curves: Failed to parse plugin args.\n");
@@ -168,11 +218,32 @@ static int curves_process(const IMAGE *img, IMAGE *img_dest,
 		return 1;
 	}
 
+	if (enabled_channels.r == 0 && enabled_channels.g == 0 &&
+		enabled_channels.b == 0 && enabled_channels.a == 0 &&
+		enabled_channels.l == 0) {
+		printf("curves: No channels enabled. Feeding image through.\n");
+		if (img_cpy(img_dest, img) != 0) {
+			return 1;
+		}
+		return 0;
+	}
+
 	for (unsigned int i = 0; i < img_bytelen(img)/RGBA_BYTES_PER_PIXEL; i++) {
-		img_dest->img[i].rgbRed = curves_apply_function(img->img[i].rgbRed);
-		img_dest->img[i].rgbGreen = curves_apply_function(img->img[i].rgbGreen);
-		img_dest->img[i].rgbBlue = curves_apply_function(img->img[i].rgbBlue);
-		img_dest->img[i].rgbReserved = curves_apply_function(img->img[i].rgbReserved);
+		// This makes sure unaffected pixels are not modifed.
+		memcpy(&img_dest->img[i], &img->img[i], sizeof(RGBQUAD));
+
+		if (enabled_channels.r) {
+			img_dest->img[i].rgbRed = curves_apply_function(img->img[i].rgbRed);
+		}
+		if (enabled_channels.g) {
+			img_dest->img[i].rgbGreen = curves_apply_function(img->img[i].rgbGreen);
+		}
+		if (enabled_channels.b) {
+			img_dest->img[i].rgbBlue = curves_apply_function(img->img[i].rgbBlue);
+		}
+		if (enabled_channels.a) {
+			img_dest->img[i].rgbReserved = curves_apply_function(img->img[i].rgbReserved);
+		}
 	}
 
 	printf("curves: Processed %i bytes of data.\n", img_bytelen(img));
@@ -180,6 +251,7 @@ static int curves_process(const IMAGE *img, IMAGE *img_dest,
 }
 
 static int curves_setup(void) {
+	memset(&enabled_channels, 0, sizeof(struct ENABLED_CHANNELS));
 	return 0;
 }
 
