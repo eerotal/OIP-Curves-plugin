@@ -251,7 +251,6 @@ static int curves_process(const IMAGE *img, IMAGE *img_dest,
 }
 
 static int curves_setup(void) {
-	memset(&enabled_channels, 0, sizeof(struct ENABLED_CHANNELS));
 	return 0;
 }
 
