@@ -17,11 +17,14 @@
 *  with Open Image Pipeline Curves plugin.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#define PRINT_IDENTIFIER "curves"
+
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
 
+#include "output.h"
 #include "plugin.h"
 #include "imgutil/imgutil.h"
 
@@ -48,6 +51,8 @@ PLUGIN_INFO PLUGIN_INFO_NAME(curves) = {
 
 	.valid_args = curves_valid_args,
 	.valid_args_count = 2,
+
+	.flag_print_verbose = &print_verbose,
 
 	.plugin_process = &curves_process,
 	.plugin_setup = &curves_setup,
@@ -136,7 +141,7 @@ static int curves_ctrl_point_from_str(const char *str) {
 		y = 0;
 	}
 
-	printf("curves: Adding control point (%li, %li).\n", x, y);
+	printverb_va("Adding control point (%li, %li).\n", x, y);
 
 	// Add the control points to the control point array.
 	num_ctrl_points++;
@@ -176,42 +181,54 @@ static int curves_parse_args(const char **plugin_args,
 			}
 		} else if (strcmp(tmp_arg, "channels") == 0) {
 			memset(&enabled_channels, 0, sizeof(struct ENABLED_CHANNELS));
-			printf("curves: Enabled channels: ");
+			printverb("Enabled channels: ");
 			for (int c = 0; c < strlen(tmp_val); c++) {
 				switch (tmp_val[c]) {
 					case 'R':
 						enabled_channels.r = 1;
-						printf("R");
+						if (print_verbose) {
+							printf("R");
+						}
 						no_channels_enabled = 0;
 						break;
 					case 'G':
 						enabled_channels.g = 1;
-						printf("G");
+						if (print_verbose) {
+							printf("G");
+						}
 						no_channels_enabled = 0;
 						break;
 					case 'B':
 						enabled_channels.b = 1;
-						printf("B");
+						if (print_verbose) {
+							printf("B");
+						}
 						no_channels_enabled = 0;
 						break;
 					case 'A':
 						enabled_channels.a = 1;
-						printf("A");
+						if (print_verbose) {
+							printf("A");
+						}
 						no_channels_enabled = 0;
 						break;
 					case 'L':
 						enabled_channels.l = 1;
-						printf("L");
+						if (print_verbose) {
+							printf("L");
+						}
 						no_channels_enabled = 0;
 						break;
 					default:
 						break;
 				}
 			}
-			if (no_channels_enabled) {
-				printf("None\n");
-			} else {
-				printf("\n");
+			if (print_verbose) {
+				if (no_channels_enabled) {
+					printf("None\n");
+				} else {
+					printf("\n");
+				}
 			}
 		}
 	}
@@ -223,16 +240,16 @@ static int curves_process(const IMAGE *img, IMAGE *img_dest,
 				const unsigned int plugin_args_count) {
 
 	if (img == NULL || img_dest == NULL) {
-		printf("curves: Received NULL image pointer!\n");
+		printerr("Received NULL image pointer!\n");
 		return 1;
 	}
 
 	if (curves_parse_args(plugin_args, plugin_args_count) != 0) {
-		printf("curves: Failed to parse plugin args.\n");
+		printerr("Failed to parse plugin args.\n");
 		return 1;
 	}
 
-	printf("curves: Received %i bytes of image data.\n", img_bytelen(img));
+	printverb_va("Received %i bytes of image data.\n", img_bytelen(img));
 	if (img_realloc(img_dest, img->w, img->h) != 0) {
 		return 1;
 	}
@@ -240,7 +257,7 @@ static int curves_process(const IMAGE *img, IMAGE *img_dest,
 	if (enabled_channels.r == 0 && enabled_channels.g == 0 &&
 		enabled_channels.b == 0 && enabled_channels.a == 0 &&
 		enabled_channels.l == 0) {
-		printf("curves: No channels enabled. Feeding image through.\n");
+		printverb("No channels enabled. Feeding image through.\n");
 		if (img_cpy(img_dest, img) != 0) {
 			return 1;
 		}
@@ -265,7 +282,7 @@ static int curves_process(const IMAGE *img, IMAGE *img_dest,
 		}
 	}
 
-	printf("curves: Processed %i bytes of data.\n", img_bytelen(img));
+	printverb_va("Processed %i bytes of data.\n", img_bytelen(img));
 	return 0;
 }
 
