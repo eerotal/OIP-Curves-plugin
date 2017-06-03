@@ -30,19 +30,20 @@
 
 #define RGBA_BYTES_PER_PIXEL 4
 
-static int curves_process(const IMAGE *img, IMAGE *img_dest,
-				const char **plugin_args,
-				const unsigned int plugin_args_count);
+static int curves_process(struct PLUGIN_INDATA *in);
 static int curves_setup(void);
 static void curves_cleanup(void);
 static int curves_apply_function(uint8_t val);
 static int curves_ctrl_point_from_str(const char *str);
+static int curves_parse_args(char **args, int argc);
 
-static char *curves_valid_args[2] = {
+// Valid plugin arguments
+static const char *curves_valid_args[2] = {
 	"ctrl_points",
 	"channels"
 };
 
+// Plugin information
 PLUGIN_INFO PLUGIN_INFO_NAME(curves) = {
 	.name = "curves",
 	.descr = "A curve based image manipulation plugin.",
@@ -158,8 +159,7 @@ static int curves_ctrl_point_from_str(const char *str) {
 	return 0;
 }
 
-static int curves_parse_args(const char **plugin_args,
-			const unsigned int plugin_args_count) {
+static int curves_parse_args(char **args, int argc) {
 	/*
 	*  Parse the plugin args. Return 0 on success
 	*  and 1 on failure.
@@ -168,9 +168,9 @@ static int curves_parse_args(const char **plugin_args,
 	char *tmp_val = NULL;
 	unsigned int no_channels_enabled = 1;
 
-	for (unsigned int i = 0; i < plugin_args_count; i++) {
-		tmp_arg = (char*) plugin_args[i*2];
-		tmp_val = (char*) plugin_args[i*2 + 1];
+	for (unsigned int i = 0; i < argc; i++) {
+		tmp_arg = (char*) args[i*2];
+		tmp_val = (char*) args[i*2 + 1];
 		if (strcmp(tmp_arg, "ctrl_points") == 0) {
 			for (int c = 0; c < strlen(tmp_val); c++) {
 				if (tmp_val[c] == '(') {
@@ -235,55 +235,47 @@ static int curves_parse_args(const char **plugin_args,
 	return 0;
 }
 
-static int curves_process(const IMAGE *img, IMAGE *img_dest,
-				const char **plugin_args,
-				const unsigned int plugin_args_count) {
-
-	if (img == NULL || img_dest == NULL) {
-		printerr("Received NULL image pointer!\n");
-		return 1;
-	}
-
-	if (curves_parse_args(plugin_args, plugin_args_count) != 0) {
+static int curves_process(struct PLUGIN_INDATA *in) {
+	if (curves_parse_args(in->args, in->argc) != 0) {
 		printerr("Failed to parse plugin args.\n");
-		return 1;
+		return PLUGIN_STATUS_ERROR;
 	}
 
-	printverb_va("Received %i bytes of image data.\n", img_bytelen(img));
-	if (img_realloc(img_dest, img->w, img->h) != 0) {
-		return 1;
+	printverb_va("Received %i bytes of image data.\n", img_bytelen(in->src));
+	if (img_realloc(in->dst, in->src->w, in->src->h) != 0) {
+		return PLUGIN_STATUS_ERROR;
 	}
 
 	if (enabled_channels.r == 0 && enabled_channels.g == 0 &&
 		enabled_channels.b == 0 && enabled_channels.a == 0 &&
 		enabled_channels.l == 0) {
 		printverb("No channels enabled. Feeding image through.\n");
-		if (img_cpy(img_dest, img) != 0) {
-			return 1;
+		if (img_cpy(in->dst, in->src) != 0) {
+			return PLUGIN_STATUS_ERROR;
 		}
-		return 0;
+		return PLUGIN_STATUS_DONE;
 	}
 
-	for (unsigned int i = 0; i < img_bytelen(img)/RGBA_BYTES_PER_PIXEL; i++) {
+	for (unsigned int i = 0; i < img_bytelen(in->src)/RGBA_BYTES_PER_PIXEL; i++) {
 		// This makes sure unaffected pixels are not modifed.
-		memcpy(&img_dest->img[i], &img->img[i], sizeof(RGBQUAD));
+		memcpy(&in->dst->img[i], &in->src->img[i], sizeof(RGBQUAD));
 
 		if (enabled_channels.r) {
-			img_dest->img[i].rgbRed = curves_apply_function(img->img[i].rgbRed);
+			in->dst->img[i].rgbRed = curves_apply_function(in->src->img[i].rgbRed);
 		}
 		if (enabled_channels.g) {
-			img_dest->img[i].rgbGreen = curves_apply_function(img->img[i].rgbGreen);
+			in->dst->img[i].rgbGreen = curves_apply_function(in->src->img[i].rgbGreen);
 		}
 		if (enabled_channels.b) {
-			img_dest->img[i].rgbBlue = curves_apply_function(img->img[i].rgbBlue);
+			in->dst->img[i].rgbBlue = curves_apply_function(in->src->img[i].rgbBlue);
 		}
 		if (enabled_channels.a) {
-			img_dest->img[i].rgbReserved = curves_apply_function(img->img[i].rgbReserved);
+			in->dst->img[i].rgbReserved = curves_apply_function(in->src->img[i].rgbReserved);
 		}
 	}
 
-	printverb_va("Processed %i bytes of data.\n", img_bytelen(img));
-	return 0;
+	printverb_va("Processed %i bytes of data.\n", img_bytelen(in->src));
+	return PLUGIN_STATUS_DONE;
 }
 
 static int curves_setup(void) {
