@@ -241,7 +241,7 @@ static int curves_process(struct PLUGIN_INDATA *in) {
 		return PLUGIN_STATUS_ERROR;
 	}
 
-	printverb_va("Received %i bytes of image data.\n", img_bytelen(in->src));
+	printverb_va("Received %zu bytes of image data.\n", img_bytelen(in->src));
 	if (img_realloc(in->dst, in->src->w, in->src->h) != 0) {
 		return PLUGIN_STATUS_ERROR;
 	}
@@ -274,7 +274,7 @@ static int curves_process(struct PLUGIN_INDATA *in) {
 		}
 	}
 
-	printverb_va("Processed %i bytes of data.\n", img_bytelen(in->src));
+	printverb_va("Processed %zu bytes of data.\n", img_bytelen(in->src));
 	return PLUGIN_STATUS_DONE;
 }
 
