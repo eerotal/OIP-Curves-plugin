@@ -282,4 +282,11 @@ static int curves_setup(void) {
 	return 0;
 }
 
-static void curves_cleanup(void) {}
+static void curves_cleanup(void) {
+	// Free control points array.
+	if (ctrl_points) {
+		free(ctrl_points);
+		ctrl_points = NULL;
+		num_ctrl_points = 0;
+	}
+}
