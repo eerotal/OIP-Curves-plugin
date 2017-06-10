@@ -27,6 +27,7 @@
 #include "output.h"
 #include "plugin.h"
 #include "imgutil/imgutil.h"
+#include "buildinfo/build.h"
 
 #define RGBA_BYTES_PER_PIXEL 4
 
@@ -49,6 +50,7 @@ PLUGIN_INFO PLUGIN_INFO_NAME(curves) = {
 	.descr = "A curve based image manipulation plugin.",
 	.author = "Eero Talus",
 	.year = "2017",
+	.built_against = &OIP_BUILT_AGAINST,
 
 	.valid_args = curves_valid_args,
 	.valid_args_count = 2,
