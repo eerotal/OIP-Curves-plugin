@@ -23,11 +23,12 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 
-#include "output.h"
-#include "plugin.h"
-#include "imgutil/imgutil.h"
-#include "buildinfo/build.h"
+#include "oip/abi/output.h"
+#include "oip/abi/plugin.h"
+#include "oipimgutil/oipimgutil.h"
+#include "oipbuildinfo/oipbuildinfo.h"
 
 #define RGBA_BYTES_PER_PIXEL 4
 
@@ -170,11 +171,11 @@ static int curves_parse_args(char **args, int argc) {
 	char *tmp_val = NULL;
 	unsigned int no_channels_enabled = 1;
 
-	for (unsigned int i = 0; i < argc; i++) {
+	for (int i = 0; i < argc; i++) {
 		tmp_arg = (char*) args[i*2];
 		tmp_val = (char*) args[i*2 + 1];
 		if (strcmp(tmp_arg, "ctrl_points") == 0) {
-			for (int c = 0; c < strlen(tmp_val); c++) {
+			for (size_t c = 0; c < strlen(tmp_val); c++) {
 				if (tmp_val[c] == '(') {
 					if (curves_ctrl_point_from_str(tmp_val + c + 1) != 0) {
 						return 1;
@@ -184,7 +185,7 @@ static int curves_parse_args(char **args, int argc) {
 		} else if (strcmp(tmp_arg, "channels") == 0) {
 			memset(&enabled_channels, 0, sizeof(struct ENABLED_CHANNELS));
 			printverb("Enabled channels: ");
-			for (int c = 0; c < strlen(tmp_val); c++) {
+			for (size_t c = 0; c < strlen(tmp_val); c++) {
 				switch (tmp_val[c]) {
 					case 'R':
 						enabled_channels.r = 1;
@@ -274,6 +275,7 @@ static int curves_process(struct PLUGIN_INDATA *in) {
 		if (enabled_channels.a) {
 			in->dst->img[i].rgbReserved = curves_apply_function(in->src->img[i].rgbReserved);
 		}
+		in->set_progress((int) round((float)i/(img_bytelen(in->src)/RGBA_BYTES_PER_PIXEL)*100));
 	}
 
 	printverb_va("Processed %zu bytes of data.\n", img_bytelen(in->src));
