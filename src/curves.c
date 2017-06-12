@@ -25,8 +25,8 @@
 #include <stdlib.h>
 #include <math.h>
 
-#include "oip/abi/output.h"
-#include "oip/abi/plugin.h"
+#include "oipcore/abi/output.h"
+#include "oipcore/abi/plugin.h"
 #include "oipimgutil/oipimgutil.h"
 #include "oipbuildinfo/oipbuildinfo.h"
 
